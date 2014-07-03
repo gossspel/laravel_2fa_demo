@@ -12,8 +12,8 @@
                 processes in this example.
             </p>
             <p>
-                Github: {{ HTML::link('https://github.com/gossspel/laravel_2fa_demo', 'gossspel/laravel_2fa_demo') }}
-                Author: {{ HTML::link('https://www.linkedin.com/pub/sunny-chan/23/a26/1a1', 'Sunny Chan') }}<br>
+                Github: {{ HTML::link('https://github.com/gossspel/laravel_2fa_demo', 'gossspel/laravel_2fa_demo') }}<br>
+                Author: {{ HTML::link('https://www.linkedin.com/pub/sunny-chan/23/a26/1a1', 'Sunny Chan') }}
                 (Founder of {{ HTML::link('https://www.crypteon.net', 'Crypteon.Net') }})<br>
                 Credits: Laravel Team for {{ HTML::link('http://laravel.com', 'Laravel') }},
                 Abdulrhman Alkhodiry for {{ HTML::link('https://github.com/zeroows/Laravel-OTPass-Bundle', 'OTPass') }}
