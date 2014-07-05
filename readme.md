@@ -24,7 +24,7 @@ Make sure you have the following:
 ## Clone the repository
 
 $ cd {your_web_root_path}  
-$ git clone https://gossspel@bitbucket.org/gossspel/2fa_demo_laravel.git  
+$ git clone https://github.com/gossspel/laravel_2fa_demo.git  
 
 ## Create Database in MySQL
 
