@@ -1,5 +1,8 @@
 <?php
 
+// TODO: Clean up - make private functions to eliminate redundancy
+// TODO: Redundancy - postDisableAuthenticator() and postEnableAuthentication()
+
 class UsersController extends BaseController {
 
     protected $layout = "layouts.main";
