@@ -12,7 +12,7 @@
                 <b>First Name:</b>
             </span>
             <span class="list-span">
-                {{ $user_array['first_name'] }}
+                {{ $setting_array['first_name'] }}
             </span>
         </li>
         <li class="list-group-item">
@@ -20,7 +20,7 @@
                 <b>Last Name:</b>
             </span>
             <span class="list-span">
-                {{ $user_array['last_name'] }}
+                {{ $setting_array['last_name'] }}
             </span>
         </li>
         <li class="list-group-item">
@@ -28,7 +28,7 @@
                 <b>Email:</b>
             </span>
             <span class="list-span">
-                {{ $user_array['email'] }}
+                {{ $setting_array['email'] }}
             </span>
         </li>
         <li class="list-group-item">
@@ -36,7 +36,7 @@
                 <b>2FA:</b>
             </span>
             <span class="list-span">
-                {{ $user_array['two_factor_mode'] }}
+                {{ $setting_array['two_factor_mode'] }}
             </span>
         </li>
         <li class="list-group-item">
@@ -44,7 +44,7 @@
                 <b>Created At:</b>
             </span>
             <span class="list-span">
-                {{ $user_array['created_at'] }}
+                {{ $setting_array['created_at'] }}
             </span>
         </li>
         <li class="list-group-item">
@@ -52,11 +52,11 @@
                 <b>Updated At:</b>
             </span>
             <span class="list-span">
-                {{ $user_array['updated_at'] }}
+                {{ $setting_array['updated_at'] }}
             </span>
         </li>
     </ul>
 
     <!-- Insert modular form here: disable-authenticator.blade.php or enable-authenticator.blade.php -->
-    @include($modular_form)
+    @include($setting_array['modular_form'])
 </div>

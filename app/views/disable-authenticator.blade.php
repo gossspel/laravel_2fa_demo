@@ -1,4 +1,4 @@
-{{ Form::open(array('url'=>'users/disable-authenticator', 'role'=>'form')) }}
+{{ Form::open(array('url'=>'users/toggle-authenticator', 'role'=>'form')) }}
     <div class="panel panel-default auto-hori-margin">
         <div class="panel-heading setting-panel-heading">
             Two Factor Authentication: On

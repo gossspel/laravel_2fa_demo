@@ -1,285 +1,113 @@
 <?php
 
-// TODO: Clean up - make private functions to eliminate redundancy
-// TODO: Redundancy - postDisableAuthenticator() and postEnableAuthentication()
+// TODO: Unit Testing for all methods
+// TODO: Make a new StaticPages Controller and Views for the Front action
 
 class UsersController extends BaseController {
-
+    // Instance keys
+    protected $key_message = 'message';
+    protected $key_message_level = 'message_level';
+    protected $key_mode = 'mode';
+    protected $key_pass = 'pass';
+    protected $key_redirect = 'redirect';
+    protected $key_URI = 'uri';
+    protected $key_setting_array = 'setting_array';
+    protected $key_validation_error = 'validation_error';
+    
+    // Instance values
     protected $layout = "layouts.main";
+    protected $auth_filter_exception = array('getFront', 'getLogin', 'getLoginVerify', 'getLogout', 'getRegister',
+    'postCreate', 'postLogin', 'postLoginVerify');
 
-    public function __construct() {
-        $this->beforeFilter('csrf', array('on' => 'post'));
-        $this->beforeFilter('auth', array('on' => array('getSetting')));
+    // Utility methods - Notice that Redirect must be done in controller to preserve layout variables
+    protected function redirectTo($param) {
+        return Redirect::to($param[$this->key_URI])
+            ->with($this->key_message, $param[$this->key_message])
+            ->with($this->key_message_level, $param[$this->key_message_level]);
     }
 
+    protected function redirectMode($param) {
+        return Redirect::$param[$this->key_mode]($param[$this->key_URI])
+            ->with($this->key_message, $param[$this->key_message])
+            ->with($this->key_message_level, $param[$this->key_message_level]);
+    }
+
+    // Constructor methods
+    public function __construct() {
+        $this->beforeFilter('csrf', array('on' => 'post'));
+        $this->beforeFilter('auth', array('except' => $this->auth_filter_exception));
+    }
+
+
+    // Controller methods
     public function getFront() {
-        $auth_check = Auth::check();
-
-        if ($auth_check == false) {
-            $this->layout->nav_mode = 'public-nav';
-        } else {
-            $this->layout->nav_mode = 'private-nav';
-        }
-
+        $this->layout->nav_mode = User::getAuthCheckNav();
         $this->layout->content = View::make('users.front');
     }
 
     public function getLogin() {
-        if (Auth::check() == true) {
-            return Redirect::to('users/setting')
-                ->with('message', 'Your are logged in already!')
-                ->with('message-level', 'alert-info');
+        $param = User::getLogin();
+        if ($param[$this->key_redirect]) {
+            return $this->redirectTo($param);
         }
-
-        $this->layout->nav_mode = 'public-nav';
+        $this->layout->nav_mode = User::getPublicNav();
         $this->layout->content = View::make('users.login');
     }
 
     public function getLoginVerify() {
-        if (!Session::has('login_verify_email')) {
-            return Redirect::to('/')
-                ->with('message', "Oops, we couldn't find what you're looking for.")
-                ->with('message-level', 'alert-info');
-        } else {
-            $this->layout->nav_mode = 'public-nav';
-            $this->layout->content = View::make('users.login-verify');
+        $param = User::getLoginVerify();
+        if ($param[$this->key_redirect]) {
+            return $this->redirectTo($param);
         }
+        $this->layout->nav_mode = User::getAuthCheckNav();
+        $this->layout->content = View::make('users.login-verify');
     }
 
     public function getLogout() {
-        Auth::logout();
-        return Redirect::to('users/login')
-            ->with('message', 'Your are now logged out!')
-            ->with('message-level', 'alert-info');
+        $param = User::getLogout();
+        return $this->redirectTo($param);
     }
 
     public function getRegister() {
-        if (Auth::check() == true) {
-            return Redirect::to('users/setting')
-                ->with('message', 'Your are logged in already! Please log out before you register for another account.')
-                ->with('message-level', 'alert-info');
+        $param = User::getRegister();
+        if ($param[$this->key_redirect]) {
+            return $this->redirectTo($param);
         }
-
-        $this->layout->nav_mode = 'public-nav';
+        $this->layout->nav_mode = User::getPublicNav();
         $this->layout->content = View::make('users.register');
     }
 
     public function getSetting() {
         $user = Auth::user();
-        $email = $user->email;
-        $mode = $user->two_factor_mode;
-        $secret = $user->two_factor_secret;
-        $user_array = array('email' => $user->email,
-            'first_name' => $user->first_name,
-            'last_name' => $user->last_name,
-            'created_at' => $user->created_at,
-            'updated_at' => $user->updated_at,
-            'two_factor_mode' => $user->two_factor_mode
-        );
-
-        if ($mode == 'off') {
-            // Mode for 2FA is 'off', allow user to turn it on.
-
-            $modular_form = 'enable-authenticator';
-        } else {
-            // Mode for 2FA is 'on', allow user to turn if off.
-
-            $modular_form = 'disable-authenticator';
-        }
-
-        $qr_link = GoogleAuthenticator::getQRcodeURL($email, "Laravel2FA", $secret);
-
-        $this->layout->nav_mode = 'private-nav';
-        $this->layout->content = View::make('users.setting')
-            ->with('user_array', $user_array)
-            ->with('secret', $secret)
-            ->with('modular_form', $modular_form)
-            ->with('qr_link', $qr_link);
+        $settingArray = $user->getSetting();
+        $this->layout->nav_mode = User::getPrivateNav();
+        $this->layout->content = View::make('users.setting')->with($this->key_setting_array, $settingArray);
     }
 
     public function postCreate() {
-        $validator = Validator::make(Input::all(), User::$rules);
-
-        if ($validator->passes()) {
-            // validation has passed, save user
-
-            // Create Google Two Factor Authentication Secret
-            $secret = GoogleAuthenticator::userRandomKey();
-
-            // Saving user data in MySQL
-            $user = new User;
-            $user->first_name = Input::get('first_name');
-            $user->last_name = Input::get('last_name');
-            $user->email = Input::get('email');
-            $user->password = Hash::make(Input::get('password'));
-            $user->two_factor_mode = 'off'; // Two Factor Authentication is turned off by default.
-            $user->two_factor_secret = $secret;
-            $user->save();
-
-            // Saving User permanent cache in Redis
-            $redis = Redis::connection();
-            $account_cache_key = $user->email . '_cache';
-            $redis->hset($account_cache_key, 'two_factor_mode', 'off');
-            $redis->hset($account_cache_key, 'two_factor_secret', $secret);
-            $redis->hset($account_cache_key, 'id', $user->id);
-            $redis->bgsave();
-
-            return Redirect::to('users/login')
-                ->with('message', 'Thanks for registering!')
-                ->with('message-level', 'alert-success');
+        $param = User::postCreate();
+        $redirect = $this->redirectTo($param);
+        if (!$param[$this->key_pass]) {
+            return $redirect->withErrors($param[$this->key_validation_error])->withInput();
         } else {
-            // validation has failed, display error messages
-
-            return Redirect::to('users/register')
-                ->with('message', 'Unsuccessful form submit, please check the errors below.')
-                ->with('message-level', 'alert-danger')
-                ->withErrors($validator)
-                ->withInput();
+            return $redirect;
         }
     }
 
-    public function postDisableAuthenticator() {
-        // Form Fields Validation
-        $user = Auth::user();
-        $secret = $user->two_factor_secret;
-        $user_otp= Input::get('user_otp');
-        $otp = GoogleAuthenticator::generate($secret, 30);
+    public function postToggleAuthenticator() {
+        $param = Auth::user()->postToggleAuthenticator();
+        return $this->redirectTo($param);
 
-        if ($user_otp == $otp) {
-            // Saving data in MySQL
-            DB::table('users')->where('id', $user->id)->update(array('two_factor_mode' => 'off'));
-
-            // Saving permanent cache data in Redis
-            $redis = Redis::connection();
-            $account_cache_key = $user->email . '_cache';
-            $redis->hset($account_cache_key, 'two_factor_mode', 'off');
-
-            $message = 'Two factor authentication has been turned off successfully!';
-            return Redirect::to('users/setting')->with('message', $message)
-                ->with('message-level', 'alert-success');
-        } else {
-            $message = 'The 6 digits code you entered is invalid/expired (it expires in 30 seconds), please try again.';
-            return Redirect::to('users/setting')->with('message', $message)
-                ->with('message-level', 'alert-danger');
-        }
-    }
-
-    public function postEnableAuthenticator() {
-        // Form Fields Validation
-        $user = Auth::user();
-        $secret = $user->two_factor_secret;
-        $user_otp = Input::get('user_otp');
-        $otp = GoogleAuthenticator::generate($secret, 30);
-
-        if ($user_otp == $otp) {
-            // Saving data in MySQL
-            DB::table('users')->where('id', $user->id)->update(array('two_factor_mode' => 'on'));
-
-            // Saving permanent cache data in Redis
-            $redis = Redis::connection();
-            $account_cache_key = $user->email . '_cache';
-            $redis->hset($account_cache_key, 'two_factor_mode', 'on');
-
-            $message = 'Two factor authentication has been turned on successfully!';
-            return Redirect::to('users/setting')->with('message', $message)
-                ->with('message-level', 'alert-success');
-        } else {
-            $message = 'The 6 digits code you entered is invalid/expired (it expires in 30 seconds), please try again.';
-            return Redirect::to('users/setting')->with('message', $message)
-                ->with('message-level', 'alert-danger');
-        }
     }
 
     public function postLogin() {
-        $email = Input::get('email');
-        $password = Input::get('password');
-
-        if (!Auth::validate(array('email' => $email, 'password' => $password))) {
-            sleep(2); // Simple approach to slow down brute-force login
-            return Redirect::to('users/login')
-                ->with('message', 'Your username/password combination was incorrect.')
-                ->with('message-level', 'alert-danger')
-                ->withInput();
-        }
-
-        $account_cache_key = $email . '_cache';
-        $redis = Redis::connection();
-
-        if ($redis->exists($account_cache_key)) {
-            // Always use Redis for getting 2FA setting information.
-
-            $mode = $redis->hget($account_cache_key, 'two_factor_mode');
-        } else {
-            /*
-             * Only use MySQL for getting 2FA setting information if the Redis cache does not exist, which shouldn't
-             * happen under normal circumstances.
-             */
-
-            $user = DB::table('users')->where('email', $email)->first();
-            $mode = $user->two_factor_mode;
-        }
-
-        if ($mode == 'off') {
-            // 2FA is disabled, log in the user
-
-            Auth::attempt(array('email' => $email, 'password' => $password));
-            $message = 'You are now logged in!';
-            return Redirect::intended('users/setting')
-                ->with('message', $message)
-                ->with('message-level', 'alert-success');
-        } else {
-            // 2FA is enabled, prompt for 6 digits code
-
-            Session::set('login_verify_email', $email);
-            $message = '2FA is enabled, please enter the 6 digits code generated by Google Authenticator to continue.';
-            return Redirect::to('users/login-verify')
-                ->with('message', $message)
-                ->with('message-level', 'alert-info');
-        }
+        $param = User::postLogin();
+        return $this->redirectMode($param);
     }
 
     public function postLoginVerify() {
-        if (!Session::has('login_verify_email')) {
-            return Redirect::to('users/login')
-                ->with('message', "Session has expired, please try again.")
-                ->with('message-level', 'alert-info');
-        }
-
-        $email = Session::get('login_verify_email');
-        $account_cache_key = $email . '_cache';
-        $redis = Redis::connection();
-
-        if ($redis->exists($account_cache_key)) {
-            // Always use Redis for getting 2FA setting information.
-
-            $secret = $redis->hget($account_cache_key, 'two_factor_secret');
-            $user_id = $redis->hget($account_cache_key, 'id');
-        } else {
-            /*
-             * Only use MySQL for getting 2FA setting information if the Redis cache does not exist, which shouldn't
-             * happen under normal circumstances.
-             */
-
-            $user = DB::table('users')->where('email', $email)->first();
-            $secret = $user->two_factor_secret;
-            $user_id = $user->id;
-        }
-
-        $user_otp = Input::get('user_otp');
-        $otp = GoogleAuthenticator::generate($secret, 30);
-
-        if ($user_otp == $otp) {
-            Auth::loginUsingId($user_id);
-            Session::forget('login_verify_email');
-            $message = 'You are now logged in!';
-            return Redirect::intended('users/setting')->with('message', $message)
-                ->with('message-level', 'alert-success');
-        } else {
-            Session::set('login_verify_email', $email);
-            $message = 'The 6 digits code you entered is invalid/expired (it expires in 30 seconds), please try again.';
-            return Redirect::to('users/login-verify')->with('message', $message)
-                ->with('message-level', 'alert-danger');
-        }
+        $param = User::postLoginVerify();
+        return $this->redirectMode($param);
     }
 
 }

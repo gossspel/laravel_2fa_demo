@@ -68,7 +68,7 @@ App::missing(function($exception)
 {
     return Redirect::to('/')
         ->with('message', "Oops, we couldn't find what you're looking for.")
-        ->with('message-level', 'alert-info');
+        ->with('message_level', 'alert-info');
 });
 
 /*
